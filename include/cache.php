@@ -70,6 +70,25 @@ $ob_callback = function( $contents ) {
 
 	$key = key();
 
+    $cached_contents = $contents;
+
+    // Encoding
+    switch ( $key['encoding'] ) {
+        case 'br':
+            $headers['Content-Encoding'][] = 'br';
+            $cached_contents = brotli_compress( $contents );
+            break;
+        case 'gz':
+            $headers['Content-Encoding'][] = 'gzip';
+            $cached_contents = gzencode( $contents, 9 );
+            break;
+    }
+
+    // Encoding failed
+    if ( false === $cached_contents && in_array($key['encoding'], ['br', 'gzip'], true) ) {
+        return $contents;
+    }
+
 	$meta = [
 		'code' => http_response_code(),
 		'headers' => $headers,
@@ -99,7 +118,7 @@ $ob_callback = function( $contents ) {
 	fwrite( $f, '<?php exit; ?>' );
 	fwrite( $f, pack( 'L', strlen( $meta ) ) );
 	fwrite( $f, $meta );
-	fwrite( $f, $contents );
+	fwrite( $f, $cached_contents );
 
 	// Close the file.
 	fclose( $f );

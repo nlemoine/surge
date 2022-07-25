@@ -12,6 +12,37 @@ namespace Surge;
 const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
 
 /**
+ * Get HTTP headers
+ *
+ * @return array
+ */
+function http_request_headers(): array {
+    return array_filter( $_SERVER, function( $k ): bool {
+        return strpos( $k, 'HTTP_' ) === 0;
+    }, ARRAY_FILTER_USE_KEY );
+}
+
+/**
+ * Get accepted encoding
+ *
+ * @return string
+ */
+function encoding(): string {
+    $request_headers = http_request_headers();
+    $accept_encoding = $request_headers['HTTP_ACCEPT_ENCODING'] ?? '';
+	if ( empty( $accept_encoding ) ) {
+		return 'none';
+	}
+    if ( function_exists( 'brotli_compress' ) && is_ssl() && strpos( $accept_encoding, 'br' ) !== false ) {
+        return 'br';
+    } elseif ( function_exists( 'gzencode' ) && is_ssl() && strpos( $accept_encoding, 'gzip' ) !== false ) {
+        return 'gz';
+    } else {
+        return 'none';
+    }
+}
+
+/**
  * Caching configuration settings.
  *
  * @param string $key Configuration key
@@ -26,7 +57,7 @@ function config( $key ) {
 	}
 
 	$config = [
-		'ttl' => 600,
+		'ttl' => WEEK_IN_SECONDS,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
 
 		// https://github.com/mpchadwick/tracking-query-params-registry/blob/master/_data/params.csv
@@ -126,6 +157,7 @@ function key() {
 		'path' => $path,
 		'query_vars' => $query_vars,
 		'cookies' => [],
+        'encoding' => encoding(),
 		'variants' => config( 'variants' ),
 	];
 
